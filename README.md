@@ -31,6 +31,12 @@ mongodb@6.20.0
 
 6.	Troubleshooting Practice o Stop the MongoDB service and run the script. 
 •	What error occurs? 
+Error MongoServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017
+•	What command restarts the service? 
+Net start MongoDB
+
+7.	GitHub Repository Structure o On GitHub, navigate to your repository’s. 
+•	What timestamp is listed for your last commit? 
 
 
 
