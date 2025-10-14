@@ -36,7 +36,18 @@ Error MongoServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNRE
 Net start MongoDB
 
 7.	GitHub Repository Structure o On GitHub, navigate to your repository’s. 
-•	What timestamp is listed for your last commit? 
+•	What timestamp is listed for your last commit?
+
+•	How many files are present in this branch? 
+There are 6 files present in this branch
+
+8.	Performance Observation o Time how long it takes for the script to print "Connected	to	MongoDB!". 
+•	What is the duration (in milliseconds)?
+52ms
+•	Does this time change if you run the script again? Why? 
+Yes, there a few things can caused the connection time differently, one factor is, it is because that there isn’t enough RAM available. It can make the vs code take  longer to run a program. Also, the performance of the system depends on how busy it is. If CPU is running several software processes at once, it makes the makes connections and execution take longer
+
+
 
 
 
