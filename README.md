@@ -20,10 +20,66 @@ Means the connection to MongoDB failed because Node.js did not receive any respo
 
 4.	MongoDB Shell Query 
 o	Use the MongoDB shell (not Compass) to: 
-•	List all documents in the testDB.users collection. 
+•	List all documents in the testDB.users collection.
 •	What command did you use? Paste the full output.
 
-6.	File System & Dependencies 
+C:\Users\USER>cd "C:\Program Files\MongoDB\Server\8.2\bin"
+
+C:\Program Files\MongoDB\Server\8.2\bin>dir
+ Volume in drive C has no label.
+ Volume Serial Number is FEA2-42FF
+
+ Directory of C:\Program Files\MongoDB\Server\8.2\bin
+
+09/10/2025  12:38 PM    <DIR>          .
+09/10/2025  12:38 PM    <DIR>          ..
+30/09/2025  10:06 PM             1,558 InstallCompass.ps1
+09/10/2025  12:48 PM               539 mongod.cfg
+30/09/2025  10:45 PM        77,217,280 mongod.exe
+30/09/2025  10:45 PM     1,217,785,856 mongod.pdb
+30/09/2025  10:45 PM        50,398,720 mongos.exe
+30/09/2025  10:45 PM       815,575,040 mongos.pdb
+               6 File(s)  2,160,978,993 bytes
+               2 Dir(s)  166,109,560,832 bytes free
+
+C:\Program Files\MongoDB\Server\8.2\bin>mongosh
+Current Mongosh Log ID: 68ef78a64a634fbaa7cebea3
+Connecting to:          mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.5.8
+Using MongoDB:          8.2.1
+Using Mongosh:          2.5.8
+
+For mongosh info see: https://www.mongodb.com/docs/mongodb-shell/
+
+
+To help improve our products, anonymous usage data is collected and sent to MongoDB periodically (https://www.mongodb.com/legal/privacy-policy).
+You can opt-out by running the disableTelemetry() command.
+
+------
+   The server generated these startup warnings when booting
+   2025-10-15T00:12:39.894+08:00: Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
+------
+
+test> use testDB
+switched to db testDB
+testDB> db.users.find()
+[
+  { _id: ObjectId('68ea753cea6d1c2194a07176'), name: 'azri', age: 22 },
+  { _id: ObjectId('68ee4893ca1185abbe8629b3'), name: 'Alice', age: 25 },
+  { _id: ObjectId('68ee49f19619a017e597f819'), name: 'Alice', age: 25 },
+  { _id: ObjectId('68ee52cf647d80ebf6b9f1e5'), name: 'Azri', age: 22 },
+  { _id: ObjectId('68ee569db8f3dd6867dad5be'), name: 'Azri', age: 22 },
+  { _id: ObjectId('68ee6c8c68870b02aea541cc'), name: 'Alice', age: 25 },
+  { _id: ObjectId('68ee6c92a8b2b556d78296ee'), name: 'Alice', age: 25 },
+  { _id: ObjectId('68ee700e1d43723a58088121'), name: 'Alice', age: 25 },
+  { _id: ObjectId('68ee76874ff1c7d93481ce9a'), name: 'Azri', age: 22 },
+  { _id: ObjectId('68ee768f5580aef2d92e08e5'), name: 'Azri', age: 22 },
+  { _id: ObjectId('68ee7a90d3a016511c74a6b2'), name: 'Alice', age: 25 },
+  { _id: ObjectId('68ee7b52ba33f723b3a53004'), name: 'Alice', age: 25 },
+  { _id: ObjectId('68ee7b68fbdde63f657b15cd'), name: 'Alice', age: 25 }
+]
+testDB>
+
+5.	File System & Dependencies 
 o	What is the absolute path to your project’s package-lock.json file? 
 "C:\Users\USER\Documents\cloud system\package.json"
 o	What exact version of the mongodb driver is installed? 
