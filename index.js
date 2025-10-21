@@ -42,9 +42,9 @@ async function main() {
         console.log("\nConnected to MongoDB!");
 
         const db = client.db("testDB");
-        // const collection = db.collection("users");
-
         const driverCollection = db.collection("drivers");
+        await driverCollection.deleteMany({});
+
         const result = await driverCollection.insertMany(drivers);
         console.log(`\n Successfully inserted ${result.insertedCount} drivers!`);
         console.log("Inserted IDs:", result.insertedIds);
@@ -60,6 +60,16 @@ async function main() {
         }).toArray();
        console.log("\nAvailable drivers:");
        console.table(availableDrivers);
+
+        const updateResult = await driverCollection.updateOne(
+            { name: "John Doe" },
+            { $inc: { rating: 0.1 } }
+        );
+        console.log("\n Update Result:", updateResult);
+
+        const updatedDriver = await driverCollection.findOne({ name: "John Doe" });
+        console.log("\n Updated John Doe :");
+        console.table([updatedDriver]);
        
 
         // // insert a doc
