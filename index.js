@@ -54,6 +54,14 @@ async function main() {
         console.log("\n All drivers in database:");
         console.table(allDrivers);
 
+        const availableDrivers = await driverCollection.find({
+            isAvalaible: true,
+            rating: { $gte: 4.5 }
+        }).toArray();
+       console.log("\nAvailable drivers:");
+       console.table(availableDrivers);
+       
+
         // // insert a doc
         // await collection.insertOne({ name: "Alice", age: 25 });
         // console.log("Document Inserted!");
