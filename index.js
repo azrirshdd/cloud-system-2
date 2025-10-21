@@ -42,15 +42,25 @@ async function main() {
         console.log("\nConnected to MongoDB!");
 
         const db = client.db("testDB");
-        const collection = db.collection("users");
+        // const collection = db.collection("users");
 
-        // insert a doc
-        await collection.insertOne({ name: "Alice", age: 25 });
-        console.log("Document Inserted!");
+        const driverCollection = db.collection("drivers");
+        const result = await driverCollection.insertMany(drivers);
+        console.log(`\n Successfully inserted ${result.insertedCount} drivers!`);
+        console.log("Inserted IDs:", result.insertedIds);
 
-        // query the doc
-        const result = await collection.findOne({ name: "Alice" });
-        console.log("Query result:", result);
+
+        const allDrivers = await driverCollection.find().toArray();
+        console.log("\n All drivers in database:");
+        console.table(allDrivers);
+
+        // // insert a doc
+        // await collection.insertOne({ name: "Alice", age: 25 });
+        // console.log("Document Inserted!");
+
+        // // query the doc
+        // const result = await collection.findOne({ name: "Alice" });
+        // console.log("Query result:", result);
 
     } catch (err) {
         console.error("Error:", err);
