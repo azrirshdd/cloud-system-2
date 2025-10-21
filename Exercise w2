@@ -1,0 +1,28 @@
+JSON Questions
+1. Explain what is CRUD operations and how it is relates to the mongo functions in
+the exercise.
+CRUD operations stand for Create, Read, Update, and Delete, which are the four basic
+functions used to manage data in a database. In this exercise, these operations relate 
+directly to MongoDB functions: insertMany was used to create new driver records, find 
+to read and display all drivers, updateOne to update a driver’s rating, and deleteOne
+to delete unavailable drivers.
+
+2. Identify all the mongo operators used in the exercise, then explain the usage for
+each.
+The MongoDB operators used in the exercise are $gte and $inc.
+ - $gte (greater than or equal to) is used in the query { rating: { $gte: 4.5 } } to filter
+and retrieve only the drivers whose rating is 4.5 or higher.
+ - $inc (increment) is used in the update operation { $inc: { rating: 0.1 } } to increase the 
+rating value of a driver (John Doe) by 0.1.
+
+3. Replace the mongo functions in Task 5 to updateMany instead of updateOne,
+compare the diFerence based on the result in console and the mongo compass.
+In the console, the updateResult will show that multiple documents were modified while
+in MongoDB Compass, you will see that all matching driver documents now have their ratings 
+increased, reflecting the batch update instead of a single record change.
+
+4. Replace the mongo functions in Task 6 to deleteMany instead of deleteOne,
+compare the diFerence based on the result in console and the mongo compass
+In the console, the deleteResult will show a higher deletedCount value if multiple documents were removed 
+while in MongoDB Compass, you will see that all drivers meeting the condition are no longer in the collection,
+rather than just one record being deleted.
