@@ -71,7 +71,8 @@ async function main() {
         console.log("\n Updated John Doe :");
         console.table([updatedDriver]);
        
-
+        const deleteResult = await driverCollection.deleteOne({ isAvalaible: false });
+        console.log(`\nDriver deleted. Deleted count: ${deleteResult.deletedCount}`);
         // // insert a doc
         // await collection.insertOne({ name: "Alice", age: 25 });
         // console.log("Document Inserted!");
