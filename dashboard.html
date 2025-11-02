@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ride & User Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+      padding: 20px;
+    }
+    h2 {
+      color: #222;
+    }
+    .container {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+    .section {
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      flex: 1;
+      min-width: 400px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f9fafb;
+    }
+    form {
+      margin-top: 15px;
+    }
+    input {
+      margin-right: 5px;
+      padding: 5px;
+    }
+    button {
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    button:hover {
+      background-color: #1d4ed8;
+    }
+  </style>
+</head>
+<body>
+  <h1>🚗 Ride & 👤 User Dashboard</h1>
+  <div class="container">
+    <!-- Rides Section -->
+    <div class="section">
+      <h2>Rides</h2>
+      <table id="ridesTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Pickup</th>
+            <th>Destination</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <form id="rideForm">
+        <input type="text" id="pickup" placeholder="Pickup Location" required>
+        <input type="text" id="destination" placeholder="Destination" required>
+        <input type="text" id="status" placeholder="Status" required>
+        <button type="submit">Add Ride</button>
+      </form>
+    </div>
+
+    <!-- Users Section -->
+    <div class="section">
+      <h2>Users</h2>
+      <table id="usersTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Email</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <form id="userForm">
+        <input type="text" id="name" placeholder="Name" required>
+        <input type="email" id="email" placeholder="Email" required>
+        <button type="submit">Add User</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "http://localhost:3000";
+
+    // Fetch and display rides
+    async function loadRides() {
+      const res = await fetch(`${API_URL}/rides`);
+      const data = await res.json();
+      const tbody = document.querySelector("#ridesTable tbody");
+      tbody.innerHTML = "";
+      data.forEach(ride => {
+        const row = `<tr>
+          <td>${ride._id}</td>
+          <td>${ride.pickupLocation}</td>
+          <td>${ride.destination}</td>
+          <td>${ride.status}</td>
+        </tr>`;
+        tbody.innerHTML += row;
+      });
+    }
+
+    // Fetch and display users
+    async function loadUsers() {
+      const res = await fetch(`${API_URL}/users`);
+      const data = await res.json();
+      const tbody = document.querySelector("#usersTable tbody");
+      tbody.innerHTML = "";
+      data.forEach(user => {
+        const row = `<tr>
+          <td>${user._id}</td>
+          <td>${user.name}</td>
+          <td>${user.email}</td>
+        </tr>`;
+        tbody.innerHTML += row;
+      });
+    }
+
+    // Add ride
+    document.getElementById("rideForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const ride = {
+        pickupLocation: document.getElementById("pickup").value,
+        destination: document.getElementById("destination").value,
+        status: document.getElementById("status").value
+      };
+      await fetch(`${API_URL}/rides`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(ride)
+      });
+      e.target.reset();
+      loadRides();
+    });
+
+    // Add user
+    document.getElementById("userForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const user = {
+        name: document.getElementById("name").value,
+        email: document.getElementById("email").value
+      };
+      await fetch(`${API_URL}/users`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(user)
+      });
+      e.target.reset();
+      loadUsers();
+    });
+
+    // Load data when page loads
+    loadRides();
+    loadUsers();
+  </script>
+</body>
+</html>
