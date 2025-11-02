@@ -20,10 +20,11 @@ async function connectToMongoDB() {
         console.error("Error", err);
     }
 }
-connectToMongoDB();
+connectToMongoDB().then(() => {
 
 app.listen(port, () => {
     console.log(`Server is running on ${port}`);
+});
 });
 
 // GET /rides - Fetch all rides
@@ -38,6 +39,8 @@ app.get('/rides', async (req, res) => {
 
 // POST /rides - Create a new ride
 app.post('/rides', async (req, res) => {
+    console.log("POST /rides called");
+    console.log("Body:", req.body);
     try {
         const result = await db.collection('rides').insertOne(req.body);
         res.status(201).json({ id: result.insertedId });
@@ -46,35 +49,49 @@ app.post('/rides', async (req, res) => {
     }
 });
 
-//PATCH /rides/:id - Update ride status
+// PATCH update ride status
 app.patch('/rides/:id', async (req, res) => {
     try {
-        const id = req.params.id;
+        const id = req.params.id.trim();
+        console.log("PATCH called with ID:", id, "and body:", req.body);
+
         const result = await db.collection('rides').updateOne(
-            { _id: ObjectId(id) },
+            { _id: new ObjectId(id) },
             { $set: { status: req.body.status } }
         );
+
         if (result.matchedCount === 0) {
+            console.log("No ride found with that ID");
             return res.status(404).json({ error: 'Ride not found' });
         }
-        res.status(200).json({ updated: result.modifiedCount });
+
+        console.log("Ride updated:", id);
+        res.status(200).json({ message: "Ride status updated successfully" });
 
     } catch (err) {
-        //Handle invalid ID format or DB errors
+        console.error("PATCH error:", err);
         res.status(400).json({ error: "Invalid ride ID or data" });
     }
 });
 
-// DELETE /rides/:id - Cancel a ride
+// DELETE ride
 app.delete('/rides/:id', async (req, res) => {
     try {
-        const result = await db.collection('rides').deleteOne({ _id: ObjectId(req.params.id) });
+        const id = req.params.id.trim();
+        console.log("DELETE called with ID:", id);
+
+        const result = await db.collection('rides').deleteOne({ _id: new ObjectId(id) });
+
         if (result.deletedCount === 0) {
+            console.log("No ride found to delete for ID:", id);
             return res.status(404).json({ error: 'Ride not found' });
         }
-        res.status(200).json({ deleted: result.deletedCount });
+
+        console.log("Ride deleted:", id);
+        res.status(200).json({ message: "Ride deleted successfully" });
 
     } catch (err) {
-        res.status(400).json({ error: "Invalid ride ID" });
+        console.error("DELETE error:", err);
+        res.status(400).json({ error: "Invalid ride ID or data" });
     }
 });
