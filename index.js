@@ -27,130 +27,218 @@ app.listen(port, () => {
 });
 });
 
-// GET /rides - Fetch all rides
-app.get('/rides', async (req, res) => {
-    try {
-        const rides = await db.collection('rides').find().toArray();
-        res.status(200).json(rides);
-    } catch (err) {
-        res.status(500).json({ error: 'Failed to fetch rides' });
-    }
+// =====================  CUSTOMER ROUTES =====================
+app.post('/customers', async (req, res) => {
+  try {
+    const result = await db.collection('customers').insertOne(req.body);
+    res.status(201).json({ id: result.insertedId });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to register customer" });
+  }
 });
 
-// POST /rides - Create a new ride
-app.post('/rides', async (req, res) => {
-    console.log("POST /rides called");
-    console.log("Body:", req.body);
-    try {
-        const result = await db.collection('rides').insertOne(req.body);
-        res.status(201).json({ id: result.insertedId });
-    } catch (err) {
-        res.status(500).json({ error: 'Failed to create ride' });
+// View Driver Info (Customer)
+app.get('/customers/drivers/:id', async (req, res) => {
+  try {
+    const id = req.params.id.trim();
+    console.log("Customer requests driver info:", id);
+
+    const driver = await db.collection('drivers').findOne({ _id: new ObjectId(id) });
+
+    if (!driver) {
+      return res.status(404).json({ error: "Driver not found" });
     }
-});
 
-// PATCH update ride status
-app.patch('/rides/:id', async (req, res) => {
-    try {
-        const id = req.params.id.trim();
-        console.log("PATCH called with ID:", id, "and body:", req.body);
+    // Send driver info
+    const driverInfo = {
+      name: driver.name,
+      vehicle: driver.vehicle,
+      status: driver.status || "available",
+      contact: driver.contact || "N/A"
+    };
 
-        const result = await db.collection('rides').updateOne(
-            { _id: new ObjectId(id) },
-            { $set: { status: req.body.status } }
-        );
+    res.status(200).json(driverInfo);
 
-        if (result.matchedCount === 0) {
-            console.log("No ride found with that ID");
-            return res.status(404).json({ error: 'Ride not found' });
-        }
-
-        console.log("Ride updated:", id);
-        res.status(200).json({ message: "Ride status updated successfully" });
-
-    } catch (err) {
-        console.error("PATCH error:", err);
-        res.status(400).json({ error: "Invalid ride ID or data" });
-    }
-});
-
-// DELETE ride
-app.delete('/rides/:id', async (req, res) => {
-    try {
-        const id = req.params.id.trim();
-        console.log("DELETE called with ID:", id);
-
-        const result = await db.collection('rides').deleteOne({ _id: new ObjectId(id) });
-
-        if (result.deletedCount === 0) {
-            console.log("No ride found to delete for ID:", id);
-            return res.status(404).json({ error: 'Ride not found' });
-        }
-
-        console.log("Ride deleted:", id);
-        res.status(200).json({ message: "Ride deleted successfully" });
-
-    } catch (err) {
-        console.error("DELETE error:", err);
-        res.status(400).json({ error: "Invalid ride ID or data" });
-    }
+  } catch (err) {
+    console.error("Error fetching driver info:", err);
+    res.status(400).json({ error: "Invalid driver ID" });
+  }
 });
 
 
-
-// ======================= USERS CRUD =======================
-
-// GET all users
-app.get('/users', async (req, res) => {
-    try {
-        const users = await db.collection('users').find().toArray();
-        res.status(200).json(users);
-    } catch (err) {
-        res.status(500).json({ error: 'Failed to fetch users' });
-    }
+app.post('/rides/request', async (req, res) => {
+  try {
+    const result = await db.collection('rides').insertOne(req.body);
+    res.status(201).json({ rideId: result.insertedId });
+  } catch {
+    res.status(400).json({ error: "Failed to request ride" });
+  }
 });
 
-// POST a new user
-app.post('/users', async (req, res) => {
-    try {
-        const result = await db.collection('users').insertOne(req.body);
-        res.status(201).json({ id: result.insertedId });
-    } catch (err) {
-        res.status(500).json({ error: 'Failed to create user' });
+// Customer Login
+app.post('/customers/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // check required fields
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
     }
+
+    // Check in database
+    const customer = await db.collection('customers').findOne({ email, password });
+
+    if (!customer) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    res.status(200).json({
+      message: "Login successful",
+      customerId: customer._id,
+      name: customer.name,
+      email: customer.email
+    });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
-// PATCH update user info (e.g., name or email)
-app.patch('/users/:id', async (req, res) => {
-    try {
-        const id = req.params.id.trim();
-        const result = await db.collection('users').updateOne(
-            { _id: new ObjectId(id) },
-            { $set: req.body }
-        );
-
-        if (result.matchedCount === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        res.status(200).json({ message: "User updated successfully" });
-    } catch (err) {
-        res.status(400).json({ error: "Invalid user ID or data" });
-    }
+// =====================  DRIVER ROUTES =====================
+app.post('/drivers', async (req, res) => {
+  try {
+    const result = await db.collection('drivers').insertOne(req.body);
+    res.status(201).json({ id: result.insertedId });
+  } catch {
+    res.status(400).json({ error: "Failed to register driver" });
+  }
 });
 
-// DELETE user
-app.delete('/users/:id', async (req, res) => {
-    try {
-        const id = req.params.id.trim();
-        const result = await db.collection('users').deleteOne({ _id: new ObjectId(id) });
+app.get('/drivers/:id/passengers', async (req, res) => {
+  try {
+    const passengers = await db.collection('rides').find({ driverId: req.params.id }).toArray();
+    res.status(200).json(passengers);
+  } catch {
+    res.status(400).json({ error: "Failed to fetch passengers" });
+  }
+});
 
-        if (result.deletedCount === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
+app.patch('/drivers/:id', async (req, res) => {
+  try {
+    const result = await db.collection('drivers').updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: req.body }
+    );
+    if (result.matchedCount === 0) return res.status(404).json({ error: "Driver not found" });
+    res.status(200).json({ message: "Driver profile updated" });
+  } catch {
+    res.status(400).json({ error: "Invalid driver ID" });
+  }
+});
 
-        res.status(200).json({ message: "User deleted successfully" });
-    } catch (err) {
-        res.status(400).json({ error: "Invalid user ID or data" });
+app.delete('/drivers/:id', async (req, res) => {
+  try {
+    const id = req.params.id.trim();
+    console.log(" DELETE driver:", id);
+
+    // Pastikan ID valid sebelum convert
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Invalid ObjectId format" });
     }
+
+    const result = await db.collection('drivers').deleteOne({ _id: new ObjectId(id) });
+
+    if (result.deletedCount === 0) {
+      console.log(" Driver not found for ID:", id);
+      return res.status(404).json({ error: "Driver not found" });
+    }
+
+    console.log(" Driver deleted:", id);
+    res.status(200).json({ message: "Driver account deleted successfully" });
+
+  } catch (err) {
+    console.error(" DELETE error:", err);
+    res.status(500).json({ error: "Server error deleting driver" });
+  }
+});
+
+// DRIVER LOGIN
+app.post('/drivers/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
+
+    // Check in database
+    const driver = await db.collection('drivers').findOne({ email: email, password: password });
+
+    if (!driver) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    // If Successful
+    res.status(200).json({
+      message: "Login successful",
+      driverId: driver._id,
+      name: driver.name,
+      status: driver.status || "available"
+    });
+
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ error: "Login failed" });
+  }
+});
+
+app.patch('/rides/:id/accept', async (req, res) => {
+  try {
+    const result = await db.collection('rides').updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: { status: "accepted" } }
+    );
+    if (result.matchedCount === 0) return res.status(404).json({ error: "Ride not found" });
+    res.status(200).json({ message: "Ride accepted" });
+  } catch {
+    res.status(400).json({ error: "Invalid ride ID" });
+  }
+});
+
+
+// =====================  ADMIN  =====================
+app.get('/admin/users', async (req, res) => {
+  try {
+    const users = await db.collection('customers').find().toArray();
+    const drivers = await db.collection('drivers').find().toArray();
+    res.status(200).json({ customers: users, drivers: drivers });
+  } catch {
+    res.status(400).json({ error: "Failed to fetch users" });
+  }
+});
+
+app.get('/admin/rides', async (req, res) => {
+  try {
+    const rides = await db.collection('rides').find().toArray();
+    res.status(200).json(rides);
+  } catch {
+    res.status(400).json({ error: "Failed to fetch rides" });
+  }
+});
+
+app.delete('/admin/users/:id', async (req, res) => {
+  try {
+    const id = new ObjectId(req.params.id);
+
+    const driverResult = await db.collection('drivers').deleteOne({ _id: id });
+    if (driverResult.deletedCount > 0) {
+       return res.status(200).json({ message: "Driver account deleted successfully" });
+    }
+
+    return res.status(404).json({ error: "User not found" });
+
+  } catch (err) {
+    console.error("DELETE admin error:", err);
+    res.status(400).json({ error: "Invalid user ID" });
+  }
 });
