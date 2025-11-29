@@ -1,6 +1,11 @@
+require('dotenv').config();
 const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const port = 3000
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
+
+const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(express.json());
@@ -27,15 +32,65 @@ app.listen(port, () => {
 });
 });
 
+//middleware for authentication and authorization
+const authenticate = (req, res, next) => {
+ const token = req.headers.authorization?.split(' ')[1];
+ if (!token) return res.status(401).json({ error: "Unauthorized" });
+ try {
+ const decoded = jwt.verify(token, process.env.JWT_SECRET);
+ req.user = decoded;
+ next();
+ } catch (err) {
+ res.status(401).json({ error: "Invalid token" });
+ }
+};
+const authorize = (roles) => (req, res, next) => {
+ if (!roles.includes(req.user.role))
+ return res.status(403).json({ error: "Forbidden" });
+ next();
+}; 
+
+
 // =====================  CUSTOMER ROUTES =====================
-app.post('/customers', async (req, res) => {
+// Customer Login
+app.post('/customers/login', async (req, res) => {
   try {
-    const result = await db.collection('customers').insertOne(req.body);
-    res.status(201).json({ id: result.insertedId });
+    console.log("Login attempt:", req.body);
+    const user = await db.collection('customers').findOne({ email: req.body.email });
+    console.log("User from DB:", user);
+
+    if (!user) return res.status(401).json({ error: "Invalid credentials" });
+
+    const match = await bcrypt.compare(req.body.password, user.password);
+    console.log("Password match:", match);
+
+    if (!match) return res.status(401).json({ error: "Invalid credentials" });
+
+    const token = jwt.sign(
+      { userId: user._id, role: 'customer' },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN }
+    );
+
+    res.status(200).json({ token });
   } catch (err) {
-    res.status(400).json({ error: "Failed to register customer" });
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
   }
 });
+
+
+// Register Customer
+app.post('/customers', async (req, res) => {
+  try {
+    const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
+ const user = { ...req.body, password: hashedPassword };
+ await db.collection('customers').insertOne(user);
+ res.status(201).json({ message: "User created" });
+ } catch (err) {
+ res.status(400).json({ error: "Failed to Register Customer" });
+ }
+}); 
 
 // View Driver Info (Customer)
 app.get('/customers/drivers/:id', async (req, res) => {
@@ -65,7 +120,7 @@ app.get('/customers/drivers/:id', async (req, res) => {
   }
 });
 
-
+// Request Ride
 app.post('/rides/request', async (req, res) => {
   try {
     const result = await db.collection('rides').insertOne(req.body);
@@ -75,45 +130,38 @@ app.post('/rides/request', async (req, res) => {
   }
 });
 
-// Customer Login
-app.post('/customers/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
 
-    // check required fields
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
-    }
-
-    // Check in database
-    const customer = await db.collection('customers').findOne({ email, password });
-
-    if (!customer) {
-      return res.status(401).json({ error: "Invalid email or password" });
-    }
-
-    res.status(200).json({
-      message: "Login successful",
-      customerId: customer._id,
-      name: customer.name,
-      email: customer.email
-    });
-  } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
 
 // =====================  DRIVER ROUTES =====================
+
+// DRIVER LOGIN
+app.post('/drivers/login', async (req, res) => {
+ const user = await db.collection('drivers').findOne({ email: req.body.email
+});
+ if (!user || !(await bcrypt.compare(req.body.password, user.password))) {
+ return res.status(401).json({ error: "Invalid credentials" });
+ }
+ const token = jwt.sign(
+ { userId: user._id, role: user.role },
+ process.env.JWT_SECRET,
+ { expiresIn: process.env.JWT_EXPIRES_IN }
+ );
+ res.status(200).json({ token }); // Return token to client
+}); 
+
+// Register Driver
 app.post('/drivers', async (req, res) => {
   try {
-    const result = await db.collection('drivers').insertOne(req.body);
-    res.status(201).json({ id: result.insertedId });
-  } catch {
-    res.status(400).json({ error: "Failed to register driver" });
-  }
-});
+    const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
+ const user = { ...req.body, password: hashedPassword };
+ await db.collection('drivers').insertOne(user);
+ res.status(201).json({ message: "User created" });
+ } catch (err) {
+ res.status(400).json({ error: "Failed to Register Driver" });
+ }
+}); 
 
+// View Passengers (Driver)
 app.get('/drivers/:id/passengers', async (req, res) => {
   try {
     const passengers = await db.collection('rides').find({ driverId: req.params.id }).toArray();
@@ -123,6 +171,7 @@ app.get('/drivers/:id/passengers', async (req, res) => {
   }
 });
 
+// Update Driver Profile
 app.patch('/drivers/:id', async (req, res) => {
   try {
     const result = await db.collection('drivers').updateOne(
@@ -136,6 +185,7 @@ app.patch('/drivers/:id', async (req, res) => {
   }
 });
 
+// Delete Driver Account
 app.delete('/drivers/:id', async (req, res) => {
   try {
     const id = req.params.id.trim();
@@ -162,36 +212,7 @@ app.delete('/drivers/:id', async (req, res) => {
   }
 });
 
-// DRIVER LOGIN
-app.post('/drivers/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
-    }
-
-    // Check in database
-    const driver = await db.collection('drivers').findOne({ email: email, password: password });
-
-    if (!driver) {
-      return res.status(401).json({ error: "Invalid email or password" });
-    }
-
-    // If Successful
-    res.status(200).json({
-      message: "Login successful",
-      driverId: driver._id,
-      name: driver.name,
-      status: driver.status || "available"
-    });
-
-  } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).json({ error: "Login failed" });
-  }
-});
-
+// Accept Ride (Driver)
 app.patch('/rides/:id/accept', async (req, res) => {
   try {
     const result = await db.collection('rides').updateOne(
@@ -226,19 +247,38 @@ app.get('/admin/rides', async (req, res) => {
   }
 });
 
-app.delete('/admin/users/:id', async (req, res) => {
-  try {
-    const id = new ObjectId(req.params.id);
 
-    const driverResult = await db.collection('drivers').deleteOne({ _id: id });
-    if (driverResult.deletedCount > 0) {
-       return res.status(200).json({ message: "Driver account deleted successfully" });
+app.delete('/admin/users/:id', authenticate, authorize(['admin']), async (req, res) => {
+    console.log("Admin access:", req.user.userId);
+
+    const userIdToDelete = req.params.id;
+
+    if (!ObjectId.isValid(userIdToDelete)) {
+        return res.status(400).json({ error: "Invalid user ID" });
     }
 
-    return res.status(404).json({ error: "User not found" });
+    try {
+        const id = new ObjectId(userIdToDelete);
 
-  } catch (err) {
-    console.error("DELETE admin error:", err);
-    res.status(400).json({ error: "Invalid user ID" });
-  }
+        // Delete driver
+        const driverResult = await db.collection('drivers').deleteOne({ _id: id });
+
+        // Delete all customers associated with this driver
+        const customerResult = await db.collection('customers').deleteOne({ _id: id });
+
+        if (driverResult.deletedCount === 0 && customerResult.deletedCount === 0) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        return res.status(200).json({
+            message: "User deleted successfully",
+            deletedDriver: driverResult.deletedCount,
+            deletedCustomers: customerResult.deletedCount
+        });
+
+    } catch (err) {
+        console.error("DELETE admin error:", err);
+        res.status(500).json({ error: "Internal server error" });
+    }
 });
+
