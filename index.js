@@ -1,284 +1,101 @@
-require('dotenv').config();
-const express = require('express');
-const { MongoClient, ObjectId } = require('mongodb');
-const port = 3000
-const bcrypt = require('bcrypt');
-const saltRounds = 10;
-
-const jwt = require('jsonwebtoken');
+const express = require("express");
+const { MongoClient } = require("mongodb");
 
 const app = express();
-app.use(express.json());
+const port = 3000;
 
-let db;
+const uri = "mongodb://localhost:27017"; // MongoDB server
+const client = new MongoClient(uri);
 
-async function connectToMongoDB() {
-    const uri = 'mongodb://localhost:27017';
-    const client = new MongoClient(uri);
-    
-    try {
-        await client.connect();
-        console.log("Connected to MongoDB!");
-
-        db = client.db("testDB");
-    } catch (err) {
-        console.error("Error", err);
-    }
-}
-connectToMongoDB().then(() => {
-
-app.listen(port, () => {
-    console.log(`Server is running on ${port}`);
-});
-});
-
-//middleware for authentication and authorization
-const authenticate = (req, res, next) => {
- const token = req.headers.authorization?.split(' ')[1];
- if (!token) return res.status(401).json({ error: "Unauthorized" });
- try {
- const decoded = jwt.verify(token, process.env.JWT_SECRET);
- req.user = decoded;
- next();
- } catch (err) {
- res.status(401).json({ error: "Invalid token" });
- }
-};
-const authorize = (roles) => (req, res, next) => {
- if (!roles.includes(req.user.role))
- return res.status(403).json({ error: "Forbidden" });
- next();
-}; 
-
-
-// =====================  CUSTOMER ROUTES =====================
-// Customer Login
-app.post('/customers/login', async (req, res) => {
+async function main() {
   try {
-    console.log("Login attempt:", req.body);
-    const user = await db.collection('customers').findOne({ email: req.body.email });
-    console.log("User from DB:", user);
+    await client.connect();
+    const db = client.db("projectgrab"); // database baru
+    const usersCollection = db.collection("users");
+    const ridesCollection = db.collection("rides");
 
-    if (!user) return res.status(401).json({ error: "Invalid credentials" });
+    // Sample Users
+    const users = [
+      { user_id: 1001, name: "Dom Toretto", email:"domtoretto@gmail.com", password:"toretto1234", phone_num:"0162668832", account_num:"7636038918" },
+      { user_id: 1002, name: "Brian Oconner", email:"brianoconner@gmail.com", password:"brian1234", phone_num:"01163998857", account_num:"7636024398" },
+      { user_id: 1003, name: "Roman piece", email:"Roman piece@gmail.com", password:"roman1234", phone_num:"01811683209", account_num:"7636051832" },
+      { user_id: 1004, name: "Adam Sterling", email:"adamsterling@gmail.com", password:"adam1234", phone_num:"0142644634", account_num:"7636044634" },
+      { user_id: 1005, name: "Pablo Aimar", email:"pabloaimar@gmail.com", password:"pablo1234", phone_num:"0133638560", account_num:"7636006232" }
+    ];
 
-    const match = await bcrypt.compare(req.body.password, user.password);
-    console.log("Password match:", match);
+    // Sample Rides
+    const rides = [
+      { brand:"Perodua", model:"Bezza", colour:"White", plat_num:"VAP 5203", driver_name:"James Rodriguez", driver_id:5001, seat_num:3, fare:50.0, distance:35, user_id:1001 },
+      { brand:"Perodua", model:"Myvi", colour:"Red", plat_num:"VFY 2442", driver_name:"Sergio Danielle", driver_id:5002, seat_num:3, fare:30.0, distance:15, user_id:1002 },
+      { brand:"Proton", model:"Saga", colour:"Gray", plat_num:"VGP 6209", driver_name:"Andrea Alison", driver_id:5003, seat_num:3, fare:70.0, distance:55, user_id:1003 },
+      { brand:"Toyota", model:"Vellfire", colour:"Black", plat_num:"VQC 1111", driver_name:"Peter Parker", driver_id:5004, seat_num:5, fare:120.0, distance:110, user_id:1004 },
+      { brand:"Toyota", model:"Wish", colour:"Blue", plat_num:"VXY 1010", driver_name:"Gareth Bale", driver_id:5005, seat_num:5, fare:150.0, distance:140, user_id:1005 },
+      { brand:"Perodua", model:"Bezza", colour:"White", plat_num:"VAP 5204", driver_name:"James Rodriguez", driver_id:5001, seat_num:3, fare:45.0, distance:25, user_id:1001 } // extra ride Dom
+    ];
 
-    if (!match) return res.status(401).json({ error: "Invalid credentials" });
+    // Clear old collections (optional)
+    await usersCollection.deleteMany({});
+    await ridesCollection.deleteMany({});
 
-    const token = jwt.sign(
-      { userId: user._id, role: 'customer' },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
-    );
+    // Insert sample data
+    await usersCollection.insertMany(users);
+    await ridesCollection.insertMany(rides);
 
-    res.status(200).json({ token });
+    console.log("✅ Sample data inserted successfully into projectgrab!");
+
+    // Debug: print rides & users
+    const allUsers = await usersCollection.find({}).toArray();
+    const allRides = await ridesCollection.find({}).toArray();
+    console.log("Users:", allUsers);
+    console.log("Rides:", allRides);
+
+    // Endpoint /analytics/passengers
+    app.get("/analytics/passengers", async (req, res) => {
+      try {
+        const pipeline = [
+          {
+            $group: {
+              _id: "$user_id",
+              totalRides: { $sum: 1 },
+              totalFare: { $sum: "$fare" },
+              avgDistance: { $avg: "$distance" }
+            }
+          },
+          {
+            $lookup: {
+              from: "users",
+              localField: "_id",
+              foreignField: "user_id",
+              as: "userInfo"
+            }
+          },
+          { $unwind: "$userInfo" },
+          {
+            $project: {
+              _id: 0,
+              name: "$userInfo.name",
+              totalRides: 1,
+              totalFare: { $round: ["$totalFare", 2] },
+              avgDistance: { $round: ["$avgDistance", 2] }
+            }
+          }
+        ];
+
+        const analytics = await ridesCollection.aggregate(pipeline).toArray();
+        res.json(analytics);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send("Internal Server Error");
+      }
+    });
+
+    app.listen(port, () => {
+      console.log(`🚀 Server running at http://localhost:${port}`);
+    });
+
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Server error" });
   }
-});
+}
 
-
-// Register Customer
-app.post('/customers', async (req, res) => {
-  try {
-    const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
- const user = { ...req.body, password: hashedPassword };
- await db.collection('customers').insertOne(user);
- res.status(201).json({ message: "User created" });
- } catch (err) {
- res.status(400).json({ error: "Failed to Register Customer" });
- }
-}); 
-
-// View Driver Info (Customer)
-app.get('/customers/drivers/:id', async (req, res) => {
-  try {
-    const id = req.params.id.trim();
-    console.log("Customer requests driver info:", id);
-
-    const driver = await db.collection('drivers').findOne({ _id: new ObjectId(id) });
-
-    if (!driver) {
-      return res.status(404).json({ error: "Driver not found" });
-    }
-
-    // Send driver info
-    const driverInfo = {
-      name: driver.name,
-      vehicle: driver.vehicle,
-      status: driver.status || "available",
-      contact: driver.contact || "N/A"
-    };
-
-    res.status(200).json(driverInfo);
-
-  } catch (err) {
-    console.error("Error fetching driver info:", err);
-    res.status(400).json({ error: "Invalid driver ID" });
-  }
-});
-
-// Request Ride
-app.post('/rides/request', async (req, res) => {
-  try {
-    const result = await db.collection('rides').insertOne(req.body);
-    res.status(201).json({ rideId: result.insertedId });
-  } catch {
-    res.status(400).json({ error: "Failed to request ride" });
-  }
-});
-
-
-
-// =====================  DRIVER ROUTES =====================
-
-// DRIVER LOGIN
-app.post('/drivers/login', async (req, res) => {
- const user = await db.collection('drivers').findOne({ email: req.body.email
-});
- if (!user || !(await bcrypt.compare(req.body.password, user.password))) {
- return res.status(401).json({ error: "Invalid credentials" });
- }
- const token = jwt.sign(
- { userId: user._id, role: user.role },
- process.env.JWT_SECRET,
- { expiresIn: process.env.JWT_EXPIRES_IN }
- );
- res.status(200).json({ token }); // Return token to client
-}); 
-
-// Register Driver
-app.post('/drivers', async (req, res) => {
-  try {
-    const hashedPassword = await bcrypt.hash(req.body.password, saltRounds);
- const user = { ...req.body, password: hashedPassword };
- await db.collection('drivers').insertOne(user);
- res.status(201).json({ message: "User created" });
- } catch (err) {
- res.status(400).json({ error: "Failed to Register Driver" });
- }
-}); 
-
-// View Passengers (Driver)
-app.get('/drivers/:id/passengers', async (req, res) => {
-  try {
-    const passengers = await db.collection('rides').find({ driverId: req.params.id }).toArray();
-    res.status(200).json(passengers);
-  } catch {
-    res.status(400).json({ error: "Failed to fetch passengers" });
-  }
-});
-
-// Update Driver Profile
-app.patch('/drivers/:id', async (req, res) => {
-  try {
-    const result = await db.collection('drivers').updateOne(
-      { _id: new ObjectId(req.params.id) },
-      { $set: req.body }
-    );
-    if (result.matchedCount === 0) return res.status(404).json({ error: "Driver not found" });
-    res.status(200).json({ message: "Driver profile updated" });
-  } catch {
-    res.status(400).json({ error: "Invalid driver ID" });
-  }
-});
-
-// Delete Driver Account
-app.delete('/drivers/:id', async (req, res) => {
-  try {
-    const id = req.params.id.trim();
-    console.log(" DELETE driver:", id);
-
-    // Pastikan ID valid sebelum convert
-    if (!ObjectId.isValid(id)) {
-      return res.status(400).json({ error: "Invalid ObjectId format" });
-    }
-
-    const result = await db.collection('drivers').deleteOne({ _id: new ObjectId(id) });
-
-    if (result.deletedCount === 0) {
-      console.log(" Driver not found for ID:", id);
-      return res.status(404).json({ error: "Driver not found" });
-    }
-
-    console.log(" Driver deleted:", id);
-    res.status(200).json({ message: "Driver account deleted successfully" });
-
-  } catch (err) {
-    console.error(" DELETE error:", err);
-    res.status(500).json({ error: "Server error deleting driver" });
-  }
-});
-
-// Accept Ride (Driver)
-app.patch('/rides/:id/accept', async (req, res) => {
-  try {
-    const result = await db.collection('rides').updateOne(
-      { _id: new ObjectId(req.params.id) },
-      { $set: { status: "accepted" } }
-    );
-    if (result.matchedCount === 0) return res.status(404).json({ error: "Ride not found" });
-    res.status(200).json({ message: "Ride accepted" });
-  } catch {
-    res.status(400).json({ error: "Invalid ride ID" });
-  }
-});
-
-
-// =====================  ADMIN  =====================
-app.get('/admin/users', async (req, res) => {
-  try {
-    const users = await db.collection('customers').find().toArray();
-    const drivers = await db.collection('drivers').find().toArray();
-    res.status(200).json({ customers: users, drivers: drivers });
-  } catch {
-    res.status(400).json({ error: "Failed to fetch users" });
-  }
-});
-
-app.get('/admin/rides', async (req, res) => {
-  try {
-    const rides = await db.collection('rides').find().toArray();
-    res.status(200).json(rides);
-  } catch {
-    res.status(400).json({ error: "Failed to fetch rides" });
-  }
-});
-
-
-app.delete('/admin/users/:id', authenticate, authorize(['admin']), async (req, res) => {
-    console.log("Admin access:", req.user.userId);
-
-    const userIdToDelete = req.params.id;
-
-    if (!ObjectId.isValid(userIdToDelete)) {
-        return res.status(400).json({ error: "Invalid user ID" });
-    }
-
-    try {
-        const id = new ObjectId(userIdToDelete);
-
-        // Delete driver
-        const driverResult = await db.collection('drivers').deleteOne({ _id: id });
-
-        // Delete all customers associated with this driver
-        const customerResult = await db.collection('customers').deleteOne({ _id: id });
-
-        if (driverResult.deletedCount === 0 && customerResult.deletedCount === 0) {
-            return res.status(404).json({ error: "User not found" });
-        }
-
-        return res.status(200).json({
-            message: "User deleted successfully",
-            deletedDriver: driverResult.deletedCount,
-            deletedCustomers: customerResult.deletedCount
-        });
-
-    } catch (err) {
-        console.error("DELETE admin error:", err);
-        res.status(500).json({ error: "Internal server error" });
-    }
-});
-
+main();

@@ -1,0 +1,18 @@
+{
+	"info": {
+		"_postman_id": "0a72bf03-2486-45e7-b659-9239c9750ba8",
+		"name": "Exercise 7",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "49093881"
+	},
+	"item": [
+		{
+			"name": "projectgrab_postman_collection.json",
+			"request": {
+				"method": "GET",
+				"header": []
+			},
+			"response": []
+		}
+	]
+}
